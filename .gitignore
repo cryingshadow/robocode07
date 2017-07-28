@@ -1,3 +1,4 @@
 /.eclipse/
 .classpath
 .project
+target/classes

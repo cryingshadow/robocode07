@@ -13,6 +13,8 @@ public class Guenter extends Robot {
     private static final int SOUTH = 180;
     private static final int WEST = 270;
 
+    private static int consecutiveRobotScans = 0;
+
     double fieldWidth = 0;
     double fieldHeight = 0;
     boolean initialized = false;
@@ -26,27 +28,36 @@ public class Guenter extends Robot {
             fieldHeight = getBattleFieldHeight();
         }
 
-        final double radius = 50.0;
-        final double angle = 90.0;
+        final double radius = Rules.MAX_VELOCITY * 2;
 
         setAdjustRadarForGunTurn( false );
 
+        int counter = 0;
         while ( true ) {
             if ( !reachedWall ) {
                 goForTheWall( getHeading() );
-                turnGunEast( getGunHeading() );
+                turnGunEast();
             } else {
                 ahead( radius );
-                //                if ( getX() < 30 ) {
-                //                    fireBullet( 1 );
-                //                } else {
-                //                    turnLeft( 180 );
-                //                }
+                switch ( counter++ % 3 ) {
+                    case 0:
+                        turnGunNorth();
+                        break;
+                    case 1:
+                        turnGunEast();
+                        break;
+                    case 2:
+                        turnGunSouth();
+                        break;
+                    default:
+                        turnGunEast();
+                }
             }
         }
     }
 
-    private void turnGunEast( final double gunHeading ) {
+    private void turnGunEast(  ) {
+        final double gunHeading = getGunHeading();
         if ( gunHeading > EAST && gunHeading < WEST ) {
             turnGunLeft( gunHeading - EAST );
         } else if ( gunHeading < EAST ) {
@@ -56,13 +67,21 @@ public class Guenter extends Robot {
         }
     }
 
-    private void turnRadarEast( final double radarHeading ) {
-        if ( radarHeading > EAST && radarHeading < WEST ) {
-            turnRadarRight( WEST - radarHeading );
-        } else if ( radarHeading < EAST ) {
-            turnRadarLeft( radarHeading + EAST );
-        } else { //heading > WEST
-            turnRadarLeft( radarHeading - WEST );
+    private void turnGunNorth() {
+        final double gunHeading = getGunHeading();
+        if ( gunHeading < SOUTH ) {
+            turnGunLeft( gunHeading );
+        } else {
+            turnGunRight( 360 - gunHeading );
+        }
+    }
+
+    private void turnGunSouth() {
+        final double gunHeading = getGunHeading();
+        if ( gunHeading < SOUTH ) {
+            turnGunRight( SOUTH - gunHeading );
+        } else {
+            turnGunLeft( gunHeading - SOUTH );
         }
     }
 
@@ -89,11 +108,20 @@ public class Guenter extends Robot {
 
     @Override
     public void onScannedRobot( final ScannedRobotEvent e ) {
-        fire( getBulletPower( e.getDistance() ) );
+        consecutiveRobotScans++;
+        fire( getBulletPower( e.getDistance(), consecutiveRobotScans ) );
+        if ( consecutiveRobotScans > 3 && consecutiveRobotScans % 2 == 0 ) {
+            ahead( Rules.MAX_VELOCITY );
+        }
+        scan();
+        consecutiveRobotScans = 0;
     }
 
-    public double getBulletPower( final double distance ) {
-        return Rules.MAX_BULLET_POWER - ( ( distance / fieldWidth ) * Rules.MAX_BULLET_POWER );
+    public double getBulletPower( final double distance, final int consecutiveScans ) {
+        return Rules.MAX_BULLET_POWER - ( ( distance / fieldWidth ) * Rules.MAX_BULLET_POWER )
+                + consecutiveScans > 3
+                    ? 2
+                    : 0;
     }
 
     //    @Override
@@ -110,7 +138,7 @@ public class Guenter extends Robot {
             }
         } else {
             turnLeft( 180 );
-            turnGunEast( getGunHeading() );
+            turnGunEast();
         }
     }
 
