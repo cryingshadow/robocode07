@@ -1,5 +1,6 @@
 package de.metro.robocode;
 
+import robocode.BulletMissedEvent;
 import robocode.HitRobotEvent;
 import robocode.HitWallEvent;
 import robocode.Robot;
@@ -14,6 +15,7 @@ public class Guenter extends Robot {
     private static final int WEST = 270;
 
     private static int consecutiveRobotScans = 0;
+    private static int moveCounter = 0;
 
     double fieldWidth = 0;
     double fieldHeight = 0;
@@ -28,18 +30,17 @@ public class Guenter extends Robot {
             fieldHeight = getBattleFieldHeight();
         }
 
-        final double radius = Rules.MAX_VELOCITY * 2;
+        final double radius = Rules.MAX_VELOCITY * 3;
 
         setAdjustRadarForGunTurn( false );
 
-        int counter = 0;
         while ( true ) {
             if ( !reachedWall ) {
                 goForTheWall( getHeading() );
                 turnGunEast();
             } else {
                 ahead( radius );
-                switch ( counter++ % 3 ) {
+                switch ( moveCounter++ % 10 ) {
                     case 0:
                         turnGunNorth();
                         break;
@@ -49,14 +50,17 @@ public class Guenter extends Robot {
                     case 2:
                         turnGunSouth();
                         break;
-                    default:
+                    case 3:
                         turnGunEast();
+                        break;
+                    default:
+                        //do nothing
                 }
             }
         }
     }
 
-    private void turnGunEast(  ) {
+    private void turnGunEast() {
         final double gunHeading = getGunHeading();
         if ( gunHeading > EAST && gunHeading < WEST ) {
             turnGunLeft( gunHeading - EAST );
@@ -69,7 +73,7 @@ public class Guenter extends Robot {
 
     private void turnGunNorth() {
         final double gunHeading = getGunHeading();
-        if ( gunHeading < SOUTH ) {
+        if ( gunHeading <= SOUTH ) {
             turnGunLeft( gunHeading );
         } else {
             turnGunRight( 360 - gunHeading );
@@ -85,8 +89,20 @@ public class Guenter extends Robot {
         }
     }
 
+    private void turnGunWest() {
+        final double gunHeading = getGunHeading();
+        if ( gunHeading > EAST && gunHeading < WEST ) {
+            turnGunRight( WEST - gunHeading );
+        } else if ( gunHeading < EAST ) {
+            turnGunLeft( EAST + gunHeading );
+        } else { //heading > WEST
+            turnGunLeft( gunHeading - WEST );
+        }
+    }
+
     private void goForTheWall( final double heading ) {
         if ( heading == WEST ) {
+            turnGunWest();
             ahead( getX() );
         } else if ( heading > EAST && heading < WEST ) {
             turnRight( WEST - heading );
@@ -110,14 +126,20 @@ public class Guenter extends Robot {
     public void onScannedRobot( final ScannedRobotEvent e ) {
         consecutiveRobotScans++;
         fire( getBulletPower( e.getDistance(), consecutiveRobotScans ) );
-        if ( consecutiveRobotScans > 3 && consecutiveRobotScans % 2 == 0 ) {
-            ahead( Rules.MAX_VELOCITY );
+        if ( consecutiveRobotScans > 3 ) {
+            final double factor = 5 * ( 1 - e.getDistance() / fieldWidth );
+            ahead( Rules.MAX_VELOCITY * factor );
         }
         scan();
         consecutiveRobotScans = 0;
     }
 
-    public double getBulletPower( final double distance, final int consecutiveScans ) {
+    @Override
+    public void onBulletMissed( final BulletMissedEvent event ) {
+        consecutiveRobotScans--;
+    }
+
+    private double getBulletPower( final double distance, final int consecutiveScans ) {
         return Rules.MAX_BULLET_POWER - ( ( distance / fieldWidth ) * Rules.MAX_BULLET_POWER )
                 + consecutiveScans > 3
                     ? 2
@@ -138,7 +160,7 @@ public class Guenter extends Robot {
             }
         } else {
             turnLeft( 180 );
-            turnGunEast();
+            moveCounter = 0;
         }
     }
 
