@@ -1,7 +1,9 @@
 package de.metro.robocode;
 
+import robocode.HitRobotEvent;
 import robocode.HitWallEvent;
 import robocode.Robot;
+import robocode.Rules;
 import robocode.ScannedRobotEvent;
 
 public class Guenter extends Robot {
@@ -24,14 +26,16 @@ public class Guenter extends Robot {
             fieldHeight = getBattleFieldHeight();
         }
 
-        final double radius = 100.0;
+        final double radius = 50.0;
         final double angle = 90.0;
+
+        setAdjustRadarForGunTurn( false );
 
         while ( true ) {
             if ( !reachedWall ) {
                 goForTheWall( getHeading() );
-            } else {
                 turnGunEast( getGunHeading() );
+            } else {
                 ahead( radius );
                 //                if ( getX() < 30 ) {
                 //                    fireBullet( 1 );
@@ -43,12 +47,12 @@ public class Guenter extends Robot {
     }
 
     private void turnGunEast( final double gunHeading ) {
-        if ( gunHeading < EAST && gunHeading > WEST ) {
-            turnGunRight( WEST - gunHeading );
-        } else if ( gunHeading > EAST ) {
-            turnGunLeft( gunHeading + EAST );
-        } else { //heading < WEST
-            turnGunLeft( gunHeading - WEST );
+        if ( gunHeading > EAST && gunHeading < WEST ) {
+            turnGunLeft( gunHeading - EAST );
+        } else if ( gunHeading < EAST ) {
+            turnGunRight( EAST - gunHeading );
+        } else { //heading > WEST
+            turnGunRight( gunHeading - WEST + EAST );
         }
     }
 
@@ -85,12 +89,11 @@ public class Guenter extends Robot {
 
     @Override
     public void onScannedRobot( final ScannedRobotEvent e ) {
-        if ( fieldWidth > 0 ) {
+        fire( getBulletPower( e.getDistance() ) );
+    }
 
-        }
-        e.getDistance();
-        // Rules.MAX_BULLET_POWER;
-        fire( 10 );
+    public double getBulletPower( final double distance ) {
+        return Rules.MAX_BULLET_POWER - ( ( distance / fieldWidth ) * Rules.MAX_BULLET_POWER );
     }
 
     //    @Override
@@ -107,6 +110,16 @@ public class Guenter extends Robot {
             }
         } else {
             turnLeft( 180 );
+            turnGunEast( getGunHeading() );
+        }
+    }
+
+    @Override
+    public void onHitRobot( final HitRobotEvent event ) {
+        if ( event.getBearing() < 0 ) {
+            turnGunLeft( -event.getBearing() );
+        } else {
+            turnGunRight( event.getBearing() );
         }
     }
 
